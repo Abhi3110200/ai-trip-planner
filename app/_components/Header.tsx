@@ -23,7 +23,7 @@ function Header() {
     const { user } = useUser();
     const router = useRouter();
     return (
-        <div className="flex justify-between items-center px-4 py-3">
+        <div className="flex justify-between items-center px-4 py-3 shadow-md">
             <div>
                 <h2 className="text-2xl font-bold">AI Trip Planner</h2>
             </div>
@@ -39,7 +39,7 @@ function Header() {
                     <Button>Get Started</Button>
 
                 }
-            </SignInButton> : <Link href="/create-trip">
+            </SignInButton> : <Link href="/create-new-trip">
                 <Button>Create New Trip</Button>
             </Link>}
         </div>
