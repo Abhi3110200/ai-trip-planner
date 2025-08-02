@@ -1,13 +1,17 @@
 "use client"
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Send } from "lucide-react";
+import { Loader, Send } from "lucide-react";
 import axios from "axios";
 import { useState, useRef, useEffect } from "react";
+import EmptyBoxState from "./EmptyBoxState";
+import GroupSize from "./GroupSize";
+import BudgetUi from "./BudgetUi";
 
 type Message = {
     role: string;
     content: string;
+    ui?: string;
 }
 
 function ChatBox() {
@@ -27,16 +31,17 @@ function ChatBox() {
     }, [messages]);
 
 
-    const onSend = async () => {    
+    const onSend = async () => {
         if (!userInput?.trim()) return;
         setUserInput('');
-        const newMsg:Message = {
-            role:"user",
-            content:userInput   
+        const newMsg: Message = {
+            role: "user",
+            content: userInput
         }
 
         
-        setMessages((prev:Message[])=>[...prev,newMsg])
+        
+        setMessages((prev: Message[]) => [...prev, newMsg])
         setIsLoading(true);
         const result = await axios.post("/api/aimodel", {
             messages: [
@@ -44,42 +49,58 @@ function ChatBox() {
                 newMsg
             ]
         })
-        setMessages((prev:Message[])=>[...prev,{ role: "assistant", content: result?.data?.resp }])
-        console.log(result);
+        setMessages((prev: Message[]) => [...prev, { role: "assistant", content: result?.data?.resp, ui: result?.data?.ui }])
         setIsLoading(false);
     }
-    
+
+    const RenderGenerativeUI = (ui:string|undefined) => {
+        if(ui==="budget"){
+            return <BudgetUi onSelectOption={(v:string) => { setUserInput(v);onSend()}}/>
+        }
+        else if(ui==="groupSize"){
+            return <GroupSize onSelectOption={(v:string) => { setUserInput(v);onSend()}}/>
+        }
+        else if(ui==="tripDuration"){
+            // return </>
+        }
+        else if(ui==="final"){
+            // return </>
+        }
+        return null;
+    }
 
     return (
         <div className="h-[82vh] flex flex-col">
+            {messages?.length === 0 && <EmptyBoxState onSelectOption={(v:string) => { setUserInput(v);onSend()}}/>}
             <section className="flex-1 overflow-y-auto p-4">
-                {messages.map((msg:Message, index) => (
+                {messages.map((msg: Message, index) => (
                     msg.role === "user" ?
-                    <div key={index} className="flex justify-end mt-2">
-                        <div className="max-w-lg bg-primary text-white px-4 py-2 rounded-lg">
-                            {msg.content}
+                        <div key={index} className="flex justify-end mt-2">
+                            <div className="max-w-lg bg-primary text-white px-4 py-2 rounded-lg">
+                                {msg.content}
+                            </div>
+                        </div> :
+                        <div key={index} className="flex justify-start mt-2">
+                            <div className="max-w-lg bg-gray-100 text-gray-800 px-4 py-2 rounded-lg">
+                                {msg.content}
+                                {RenderGenerativeUI(msg.ui??"")}
+                            </div>
                         </div>
-                    </div> : 
-                    <div key={index} className="flex justify-start mt-2">
-                        <div className="max-w-lg bg-gray-100 text-gray-800 px-4 py-2 rounded-lg">
-                            {msg.content}
-                        </div>
-                    </div>
                 ))}
 
-{isLoading && (
-    <div className="flex justify-start mt-2">
-        <div className="max-w-lg bg-gray-100 text-gray-800 px-4 py-2 rounded-lg animate-pulse">
-            Assistant is typing...
-        </div>
-    </div>
-)}
+                {isLoading && (
+                    <div className="flex justify-start mt-2">
+                        <div className="max-w-lg bg-gray-100 text-gray-800 px-4 py-2 rounded-lg animate-pulse">
+                            <Loader className="animate-spin"/>
+                        </div>
+                    </div>
+                )}
 
                 <div ref={messagesEndRef} />
             </section>
             <section>
                 <div className='border rounded-2xl p-3 relative'>
-                    <Textarea placeholder="Create Your trip Paris to New York" className="w-full
+                    <Textarea placeholder="Start typing here..." className="w-full
                         h-28 bg-transparent border-none focus-visible:ring-0 shadow-none resize-none" onChange={(e) => setUserInput(e.target.value)} value={userInput} />
                     <Button size={'icon'} className="absolute bottom-4 right-4" onClick={() => onSend()}><Send className="w-4 h-4" /></Button>
                 </div>

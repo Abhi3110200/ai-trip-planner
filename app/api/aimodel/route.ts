@@ -23,35 +23,59 @@ Only ask questions about the following details in order, and wait for the user�
 - If any answer is missing or unclear, politely ask the user to clarify before proceeding.
 - Always maintain a conversational, interactive style while asking questions.
 
-Along with the response, also send which UI component to display for generative UI — for example: 'budget/groupSize/TripDuration/Final', where 'Final' means AI-generated response is complete.
+You are a travel assistant chatbot. Ask follow-up questions to plan the user's trip, such as travel budget, group size, and trip duration. Once all required information is collected, you will generate a final plan.
 
-Once all required information is collected, generate and return a strict JSON response only (no explanations or extra text) with the following schema:
+⚠️ Respond in the following strict JSON format ONLY:
 
 {
-  resp: 'Text Resp',
-  ui: 'budget/groupSize/TripDuration/Final'
-}`
-export async function POST(req: NextRequest) {
-    const { messages } = await req.json();
-    console.log(messages);
+  "resp": "Your message to show in UI",
+  "ui": "budget/groupSize/tripDuration/final"
+}
 
-    try {
-        const completion = await client.chat.completions.create({
-            model: "gpt-4", // or "gpt-3.5-turbo" if you're not using GPT-4
-            messages: [
+
+- If the user said their destination but not duration:  
+  {"resp": "How long do you plan to stay in New York?", "ui": "tripDuration"}
+
+❌ Do NOT add explanations, markdown, or any text outside the JSON. Just return a JSON object like above.
+
+`
+export async function POST(req: NextRequest) {
+  const { messages } = await req.json();
+  console.log(messages);
+
+  try {
+      const completion = await client.chat.completions.create({
+          model: "gpt-4",
+          messages: [
               {
-                role: "system",
-                content: PROMPT,
+                  role: "system",
+                  content: PROMPT,
               },
               ...messages,
-            ],
-          });
-      
-        console.log("HIS",completion.choices[0].message.content);
-        return NextResponse.json({ resp: completion.choices[0].message.content });
+          ],
+      });
 
-    } catch (error) {
-        console.log(error);
-        return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
-    }
+      const messageContent = completion.choices[0].message.content || "";
+
+      // ✅ Try parsing GPT response as JSON
+      try {
+          const parsed = JSON.parse(messageContent);
+          // ✅ Only return if it includes both required keys
+          if (parsed.resp && parsed.ui) {
+              return NextResponse.json(parsed);
+          } else {
+              throw new Error("Missing 'resp' or 'ui' keys in JSON.");
+          }
+      } catch (jsonErr) {
+          console.error("❌ Failed to parse GPT response as JSON:", messageContent);
+          return NextResponse.json(
+              { error: "Model response is not valid JSON. Please check prompt format or model behavior." },
+              { status: 500 }
+          );
+      }
+
+  } catch (error) {
+      console.error(error);
+      return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+  }
 }
